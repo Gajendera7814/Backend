@@ -22,6 +22,10 @@ app.use(express.static("public"));
 // Enabling cookie access from the server and setting cookies in the browser
 app.use(cookieParser());
 
+// routes import
+import userRouter from "./routes/user.routes.js";
 
+// routes declaration
+app.use("/api/v1/users", userRouter);
 
 export { app };
