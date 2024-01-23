@@ -57,14 +57,14 @@ userSchema.pre("save", async function (next) {
 
     // Hash the user's password using bcrypt with a cost factor of 10
     // Note: bcrypt.hash is an asynchronous function, so it returns a Promise
-    this.password = await bcrypt.hash(this.password, 10)
+    this.password = await bcrypt.hash(this.password, 10);
     next();
 });
 
 // Define a method to check if the provided password matches the hashed password stored for the user
 userSchema.methods.isPasswordCorrect = async function(password) {
     // Use bcrypt.compare to compare the provided password with the hashed password in the database
-    return await bcrypt.compare(password, this.password)
+    return await bcrypt.compare(password, this.password);
 };
 
 userSchema.methods.generateAccessToken = function() {
