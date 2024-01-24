@@ -3,6 +3,28 @@ import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { json } from "express";
+
+
+const generateAccessAndRefreshTokens = async (userId) => {
+    try {
+        const user = await User.findById(userId);
+        const accessToken = user.generateAccessToken();
+        const refreshToken = user.generateRefreshToken();
+
+        // store refreshToken inside a user object
+        user.refreshToken = refreshToken
+
+        // save the data in our db
+        await user.save({ validateBeforeSave: false });
+
+        // The refreshToken is stored in our database, and subsequently, the accessToken and refreshToken are returned.
+        return { accessToken, refreshToken };
+
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong while generating refresh and access token")
+    }
+}
 
 
 const registerUser = asyncHandler( async (req, res) => {
@@ -76,7 +98,68 @@ const registerUser = asyncHandler( async (req, res) => {
     )
 });
 
-export { registerUser };
+
+const loginUser = asyncHandler( async (req, res) => {
+    // Extract user credentials from the request body
+    const { email, username, password } = req.body;
+
+    // validation - not empty
+    if (!username || !email) {
+        throw new ApiError(400, "username or email is required");
+    }
+
+    // check if user already exists: username, email
+    const user = await User.findOne({
+        $or : [ {username}, {email} ]
+    });
+
+    if (!user) {
+        throw new ApiError(404, "User does not exist");
+    }
+
+    // Verify the password in stored database.
+    const isPasswordValid = await user.isPasswordCorrect(password);
+
+    if (!isPasswordValid) {
+        throw new ApiError(401, "Invalid user credentials");
+    }
+
+    // Generate both access and refresh tokens.
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
+
+    // Transmit the token by using cookies.
+    const loggedInUser = User.findById(user._id).select(
+        "-password -refreshToken" 
+    );
+
+    const options = {
+        // Can only be modified by the server, not the frontend
+        httpOnly: true,
+        secure: true
+    };
+
+    // cookie syntax :-  cookie(key, value, options)
+    // To set accessToken and refreshToken cookie
+    // To send json object :- json(new ApiError(200, { user: loggedInUser, accessToken, refreshToken }, "User logged In Successfully"))
+    return res.status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+        new ApiError(200, 
+            { 
+                user: loggedInUser, accessToken, refreshToken 
+            }, 
+            "User logged In Successfully"
+        )
+    )
+});
+
+
+const logoutUser = asyncHandler( async (req, res) => {
+    
+})
+
+export { registerUser, loginUser };
 
 
 
@@ -92,5 +175,22 @@ export { registerUser };
         - remove password and refresh token field from responce
         - check for user creation
         - return res
-    <<<<<<<<<<<------------------------------------------------------------------------------>>>>>>>>>>>
+    <<<<<<<<<<<-----------------------------*******************------------------------------>>>>>>>>>>>
+
+
+    <<<<<<<<<<<------------------------------ Login User Logic ------------------------------>>>>>>>>>>>
+        - Extract user credentials from the request body
+        - username and email
+        - Search for the user in our database.
+        - Verify the password in stored database.
+        - Generate both access and refresh tokens.
+        - Transmit the token by using cookies.
+    <<<<<<<<<<<-----------------------------*******************------------------------------>>>>>>>>>>>
+
+
+    <<<<<<<<<<<----------------------------- Logout User Logic ------------------------------>>>>>>>>>>>
+        - first clearing the cookie
+        - remove the refresh token
+    <<<<<<<<<<<-----------------------------*******************------------------------------>>>>>>>>>>>
+
 */
