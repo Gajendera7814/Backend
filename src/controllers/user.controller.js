@@ -399,13 +399,15 @@ const updateCoverImage = asyncHandler(async (req, res) => {
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
     try {
+        // Extracting username from request parameters
         const { username } = req.params;
 
+        // Checking if username is missing or empty
         if (!username?.trim()) {
             throw new ApiError(400, "username is missing");
         }
 
-        // Aggregation pipelines
+        // Aggregation pipelines to fetch user channel profile
         const channel = await User.aggregate([
             {
                 $match: {
@@ -413,6 +415,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                 }
             },
             {
+                // Performing a lookup to get subscribers of the channel
                 $lookup: {
                     from: "subscriptions",
                     localField: "_id",
@@ -421,6 +424,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                 }
             },
             {
+                // Performing a lookup to get channels subscribed by the user
                 $lookup: {
                     from: "subscriptions",
                     localField: "_id",
@@ -429,13 +433,17 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                 }
             },
             {
+                // Adding fields to the document
                 $addFields: {
+                    // Counting the number of subscribers
                     subscribersCount: {
                         $size: "$subscribers"
                     },
+                    // Counting the number of channels subscribed to by the user
                     channelsSubscribedToCount: {
                         $size: "$subscribedTo"
                     },
+                    // Checking if the user is subscribed to the channel
                     isSubscribed: {
                         $cond: {
                             if: {$in: [req.user?._id, "$subscribers.subscriber"]},
@@ -459,6 +467,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
             }
         ]);
 
+        // If channel does not exist
         if (!channel?.length) {
             throw new ApiError(404, "channel does not exists")
         }
