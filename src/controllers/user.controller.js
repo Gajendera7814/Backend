@@ -362,7 +362,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 });
 
 
-const updateUserCoverImage = asyncHandler(async(req, res) => {
+const updateUserCoverImage = asyncHandler(async (req, res) => {
     try {
         // Retrieve the local path of the uploaded cover image file from the request
         const coverImageLocalPath = req.file?.path;
@@ -376,21 +376,21 @@ const updateUserCoverImage = asyncHandler(async(req, res) => {
         const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
         if (!coverImage.url) {
-            throw new ApiError(400, "Error while uploading on avatar"); 
+            throw new ApiError(400, "Error while uploading on cover image"); 
         }
 
-        // If there's an error while uploading the cover image, throw an error
-        const user = await User.findByIdAndUpdate(
+        // Update the user's coverImage field in the database with the Cloudinary URL
+        const updateCoverImage = await User.findByIdAndUpdate(
             req.user?._id,
             {
-                $set:{
+                $set: {
                     coverImage: coverImage.url  // Set the coverImage field to the Cloudinary URL
                 }
             },
-            {new: true}  // Ensure the updated document is returned
+            { new: true }  // Ensure the updated document is returned
         ).select("-password");  // Exclude the password field from the returned document
 
-        return res.status(200).json(new ApiResponse(200, user, "Cover image updated successfully"));
+        return res.status(200).json(new ApiResponse(200, updateCoverImage, "Cover image updated successfully"));
     } catch (error) {
         throw new ApiError(401, error?.message || "Cover image not updated");
     }
